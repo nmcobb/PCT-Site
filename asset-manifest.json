@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/PCT-Site/static/css/main.110d37e3.css",
+    "main.js": "/PCT-Site/static/js/main.85e1bda4.js",
+    "static/js/453.782a8e08.chunk.js": "/PCT-Site/static/js/453.782a8e08.chunk.js",
+    "static/media/logo.svg": "/PCT-Site/static/media/logo.6ce24c58023cc2f8fd88fe9d219db6c6.svg",
+    "index.html": "/PCT-Site/index.html",
+    "main.110d37e3.css.map": "/PCT-Site/static/css/main.110d37e3.css.map",
+    "main.85e1bda4.js.map": "/PCT-Site/static/js/main.85e1bda4.js.map",
+    "453.782a8e08.chunk.js.map": "/PCT-Site/static/js/453.782a8e08.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.110d37e3.css",
+    "static/js/main.85e1bda4.js"
+  ]
+}
