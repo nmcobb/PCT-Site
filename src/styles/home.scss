@@ -1,0 +1,30 @@
+.home {
+    display: flex;         /* Flexbox layout for side-by-side columns */
+    height: 94vh;          /* Full height of the viewport */
+    width: 100vw;          /* Full width of the viewport */
+    margin: 3vh;           /* Margin around the container */
+}
+
+.imageContainer {
+    width: 60vw;           /* Left column for images, 30% of viewport width */
+    height: 90%;          /* Full height */
+    overflow-y: auto;      /* Enable vertical scrolling */
+    padding-right: 10px;   /* Space between image container and map */
+    box-sizing: border-box;
+}
+
+.imageContainer img {
+    max-width: 60%;
+}
+
+.postImg {
+    max-width: 100%;       /* Image takes up full width of its container */
+    margin-bottom: 10px;   /* Space between images */
+}
+
+#map-container {
+    width: 70vw;           /* Right column for map, 70% of viewport width */
+    height: 100%;          /* Full height for the map */
+    position: relative;    /* Ensures the map stays within its container */
+    background-color: lightgray; /* Placeholder color for the map container */
+}

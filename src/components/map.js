@@ -5,15 +5,14 @@ import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
-import {fromLonLat} from 'ol/proj.js';
+import { fromLonLat, toLonLat} from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON.js';
 import Style from 'ol/style/Style';
-import { Circle, LineString, Point } from 'ol/geom';
+import { Circle, LineString, MultiLineString } from 'ol/geom';
 import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import { getDistance } from 'ol/sphere';
-import { closestOnSegment, squaredDistanceToSegment } from 'ol/coordinate';
 import { Feature } from 'ol';
 
 import '../styles/map.scss';
@@ -36,20 +35,36 @@ const clStyle = [
 class GISMap extends Component {
     componentWillUnmount() { this.map.setTarget(undefined); }
 
-    loadMileMarkers() {
-        fetch('Full_PCT_Mile_Marker.geojson')
-            .then((response) => response.json())
-            .then((geojsonData) => {
-                const format = new GeoJSON();
-                const features = format.readFeatures(geojsonData, {
-                    featureProjection: 'EPSG:3857', // OpenLayers default projection
+    // loadMileMarkers() {
+    //     fetch('Full_PCT_Mile_Marker.geojson')
+    //         .then((response) => response.json())
+    //         .then((geojsonData) => {
+    //             const format = new GeoJSON();
+    //             const features = format.readFeatures(geojsonData, {
+    //                 featureProjection: 'EPSG:3857', // OpenLayers default projection
+    //             });
+    //             // Add the mile marker features to the vector source
+    //             this.setState({'mileFeatures': features})
+    //         })
+    //         .catch((error) => {
+    //             console.error('Error loading the GeoJSON file:', error);
+    //         });
+    // }
+    // This function is triggered whenever new GPS coordinates are received
+    componentDidUpdate(prevProps) {
+        if (prevProps.gpsCoordinates !== this.props.gpsCoordinates) {
+            // Safely filter out null values before mapping
+            this.props.gpsCoordinates
+                .filter(coord => coord !== null)  // Filter out null values
+                .forEach(({longitude, latitude}, idx) => {
+                    this.addPoint(fromLonLat([longitude, latitude]), idx);
                 });
-                // Add the mile marker features to the vector source
-                this.setState({'mileFeatures': features})
-            })
-            .catch((error) => {
-                console.error('Error loading the GeoJSON file:', error);
-            });
+        }
+    }
+    
+
+    componentWillUnmount() {
+        this.map.un('click', this.handleMapClick); // Clean up the event listener
     }
 
     componentDidMount() {
@@ -71,20 +86,32 @@ class GISMap extends Component {
             controls: [],
         });
 
+        this.map.on('click', this.handleMapClick); // Register click event on map
+
         this.pctVEC = new VectorSource({
             format: new GeoJSON(),
-            url: 'Full_PCT.geojson',
-            wrapX: false,
+            url: `${process.env.PUBLIC_URL}/Pacific Crest Trail.js`,
         })
 
         const getGPSReq = fetch(apiUrl)
+        let altitudes = []; 
 
-        this.pctVEC.on('change', (e) => {
+        this.pctVEC.on('change', (_) => {
             if (this.pctVEC.getState() === 'ready') {
                 getGPSReq
                     .then((e) => e.json())
-                    .then((body) => this.findNearestPoint(body.longitude, body.latitude))
+                    .then((body) => this.addPoint(this.findNearestPoint(body.longitude, body.latitude)))
                     .catch((error) => console.error('Error:', error))
+
+                this.pctVEC.getFeatures().forEach((feature) => {
+                    const coordinates = feature.getGeometry().getCoordinates()[0];
+                    coordinates.forEach((coord) => {
+                        if (coord.length > 2) {
+                            altitudes.push(coord[2]); // Add altitude to the array
+                        }
+                    });
+                });
+                this.props.setAltitudes(altitudes)
             }
         });
 
@@ -111,39 +138,45 @@ class GISMap extends Component {
 
     findNearestPoint(lon, lat) {
         const features = this.pctVEC.getFeatures();
-
-        console.log(features)
         const userCoordWebMercator = fromLonLat([lon, lat])
-        let minDistance = Infinity;
-        let nearestPointOnPath = null;
-        
+        var minDistance = Infinity;
+        var nearestPointOnPath = null;
         
         // Iterate over the features to find the nearest point
         features.forEach((feature) => {
-            const featureGeometry = feature.getGeometry();
-            if (featureGeometry instanceof LineString) {
-                const coordinates = featureGeometry.getCoordinates();
-                // Find the closest point on each segment of the LineString
-                for (let i = 0; i < coordinates.length - 1; i++) {
-                    const segmentStart = coordinates[i];
-                    const segmentEnd = coordinates[i + 1];
-        
-                    const closestPoint = closestOnSegment(userCoordWebMercator, [segmentStart, segmentEnd]);
-                    const distance = getDistance(userCoordWebMercator, closestPoint);
-        
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        nearestPointOnPath = closestPoint;
-                    }
+            var featureGeometry = feature.getGeometry();
+            if (featureGeometry instanceof MultiLineString || featureGeometry instanceof LineString) {
+                var closestPoint = featureGeometry.getClosestPoint(userCoordWebMercator)
+                const distance = getDistance(toLonLat(userCoordWebMercator), toLonLat(closestPoint));
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPointOnPath = closestPoint;
                 }
+            } else {
+                console.log("something went wrong!")
             }
         })
 
-        const circleFeature = new Feature({
-            geometry: new Circle(nearestPointOnPath, 30000)
+        return nearestPointOnPath
+    }
+
+    addPoint(point, id) {
+        // TODO
+        var circleFeature = new Feature({
+            geometry: new Circle(point, 50000),
         });
+
+        circleFeature.set('id', id)
         this.cl_layer.getSource().addFeature(circleFeature);
     }
+
+    handleMapClick = (event) => {
+        this.map.forEachFeatureAtPixel(event.pixel, (feature) => {
+            console.log(feature.get('id'), 'scrolling!');
+            this.props.scrollToImage(feature.get('id'))
+        });
+    };
 
     constructor() {
         super()
@@ -151,10 +184,7 @@ class GISMap extends Component {
     }
 
     render() {
-        return <div className='mapContainer' ref={this.mapRef} style={{
-            // height: '20vh'
-        }}
-        />
+        return <div className='mapContainer' ref={this.mapRef} />
     }
 }
 

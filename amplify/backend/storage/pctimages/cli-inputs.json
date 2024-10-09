@@ -1,0 +1,14 @@
+{
+  "resourceName": "pctimages",
+  "policyUUID": "e7f45670",
+  "bucketName": "pctimages",
+  "storageAccess": "authAndGuest",
+  "guestAccess": [
+    "READ"
+  ],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ"
+  ],
+  "groupAccess": {}
+}
